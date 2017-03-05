@@ -16,6 +16,16 @@
     },
     delay = 1000;
 
+
+    var inBrowser = typeof window !== 'undefined';
+    var UA = inBrowser && window.navigator.userAgent.toLowerCase();
+    var isIE = UA && /msie|trident/.test(UA);
+    var isIE9 = UA && UA.indexOf('msie 9.0') > 0;
+    var isEdge = UA && UA.indexOf('edge/') > 0;
+    var isAndroid = UA && UA.indexOf('android') > 0;
+    var isIOS = UA && /iphone|ipad|ipod|ios/.test(UA);
+    var isChrome = UA && /chrome\/\d+/.test(UA) && !isEdge;
+
     var extend = function (src , obj){
         for(var key in obj){
             src[key] || (src[key] = obj[key]);
@@ -49,13 +59,55 @@
             };
             setTimeout( function (){
                 document.head.appendChild(script2);
-            },100)
+            },1000)
         }
         document.head.appendChild(script);
 
     }
 
     var shouldReportRuleDB = {};
+
+    var detectIndex = 0 , detectKeys = [] , isStop = false;
+    var nextTick  = function (){
+        if(isStop){
+            return ;
+        }
+
+        if(detectIndex == 0){
+            detectKeys = Object.keys(MONITOR_CSS.getRule());
+        }
+
+        //console.time();
+        var i = detectIndex;
+        for(; i < detectIndex + 10 && i < detectKeys.length  ; i++){
+            if(MONITOR_CSS.detectRule( MONITOR_CSS.getRule()[ detectKeys[i] ].selector) ){
+                MONITOR_CSS.markRule( detectKeys[i] )
+            }/*else {
+             console.log(ruleDB[key].selector)
+             }*/
+        }
+
+        if(i >= detectKeys.length){
+            detectIndex = 0;
+        }else {
+            detectIndex = i;
+        }
+        //console.timeEnd();
+    }
+
+
+  /*  (function (){
+        var fun = function (){
+            nextTick();
+            root.requestAnimationFrame(fun)
+        }
+        root.requestAnimationFrame(fun);
+    })();*/
+
+    var isNative = function  (Ctor) {
+        return /native code/.test(Ctor.toString())
+    }
+
 
     var MONITOR_CSS = {
 
@@ -69,17 +121,16 @@
                 return
             }
 
+
+
             fetchRuleDB(this._config , function (err , ruleDB){
                 if(err){
                     console.error(err)
                 }else {
                     self._ruleDB = ruleDB;
 
-                    for(var key in ruleDB){
-                        if(self.detectRule(ruleDB[key].selector)){
-                            self.markRule(key)
-                        }
-                    }
+                    start();
+
                 }
             })
 
@@ -87,7 +138,7 @@
         },
 
         stopMonitor : function (){
-
+            isStop = true;
             return this;
         },
 
